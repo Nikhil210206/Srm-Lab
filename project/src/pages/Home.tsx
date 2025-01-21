@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Users, Award, BarChart, ChevronRight, Laptop, Brain, Target } from 'lucide-react';
+import { BookOpen, Users, BarChart, ChevronRight, Laptop, Brain, Target } from 'lucide-react';
 
 export const Home: React.FC = () => {
   return (
@@ -17,7 +17,7 @@ export const Home: React.FC = () => {
                   <span className="block">Succeed.</span>
                 </h1>
                 <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
-                  Elevate your exam preparation with our comprehensive mock test platform. 
+                  Elevate your exam preparation with our comprehensive mock test platform.
                   Designed for both students and teachers to create an engaging learning experience.
                 </p>
                 <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
