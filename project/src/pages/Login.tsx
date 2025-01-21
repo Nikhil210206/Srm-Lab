@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff, ChevronRight } from 'lucide-react';
-
 export const Login: React.FC = () => {
   const navigate = useNavigate();
   const [role, setRole] = useState<'student' | 'teacher'>('student');
