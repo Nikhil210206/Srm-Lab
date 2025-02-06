@@ -107,8 +107,7 @@ export const CreateTest: React.FC = () => {
 
     const test = {
       id: testToEdit?.id || Date.now().toString(),
-      name: testTitle,
-      subject,
+      name: testTitle,subject,
       dateCreated: testToEdit?.dateCreated || new Date().toISOString(),
       status: 'active',
       studentsCompleted: testToEdit?.studentsCompleted || 0,
