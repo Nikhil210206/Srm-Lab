@@ -49,7 +49,6 @@ export const CreateTest: React.FC = () => {
     newOptions[index] = value;
     setCurrentQuestion({ ...currentQuestion, options: newOptions });
   };
-
   const handleSaveQuestion = () => {
     if (currentQuestionIndex < questions.length) {
       // Update existing question
@@ -57,7 +56,6 @@ export const CreateTest: React.FC = () => {
       updatedQuestions[currentQuestionIndex] = currentQuestion;
       setQuestions(updatedQuestions);
     } else {
-      // Add new question
       setQuestions([...questions, currentQuestion]);
     }
     handleNextQuestion();
@@ -107,7 +105,8 @@ export const CreateTest: React.FC = () => {
 
     const test = {
       id: testToEdit?.id || Date.now().toString(),
-      name: testTitle,subject,
+      name: testTitle,
+      subject,
       dateCreated: testToEdit?.dateCreated || new Date().toISOString(),
       status: 'active',
       studentsCompleted: testToEdit?.studentsCompleted || 0,
