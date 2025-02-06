@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Plus, Trash2, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Image as ImageIcon, Type, Upload } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Question, DifficultyLevel, QuestionType } from '../types';
+import { Question, QuestionType } from '../types';
 
 const availableSubjects = [
   'Mathematics',
@@ -13,6 +13,19 @@ const availableSubjects = [
   'History',
   'Geography'
 ];
+
+// Define proper enum for difficulty levels
+enum DifficultyLevel {
+  EASY = 'easy',
+  MEDIUM = 'medium',
+  HARD = 'hard'
+}
+
+interface DifficultyDistribution {
+  [DifficultyLevel.EASY]: number;
+  [DifficultyLevel.MEDIUM]: number;
+  [DifficultyLevel.HARD]: number;
+}
 
 interface QuestionFormData extends Question {
   id: number;
@@ -43,21 +56,24 @@ export const CreateTest: React.FC = () => {
     type: 'text',
     options: ['', '', '', ''],
     correctAnswer: -1,
-    difficultyLevel: 'medium',
+    difficultyLevel: DifficultyLevel.MEDIUM,
     subject: subject
   });
 
   const [targetRatio, setTargetRatio] = useState({
-    easy: testToEdit?.targetDifficultyRatio?.easy || 30,
-    medium: testToEdit?.targetDifficultyRatio?.medium || 50,
-    hard: testToEdit?.targetDifficultyRatio?.hard || 20
+    [DifficultyLevel.EASY]: testToEdit?.targetDifficultyRatio?.easy || 30,
+    [DifficultyLevel.MEDIUM]: testToEdit?.targetDifficultyRatio?.medium || 50,
+    [DifficultyLevel.HARD]: testToEdit?.targetDifficultyRatio?.hard || 20
   });
 
-  const [difficultyDistribution, setDifficultyDistribution] = useState({
-    easy: testToEdit?.difficultyDistribution?.easy || 0,
-    medium: testToEdit?.difficultyDistribution?.medium || 0,
-    hard: testToEdit?.difficultyDistribution?.hard || 0
+  const [difficultyDistribution, setDifficultyDistribution] = useState<DifficultyDistribution>({
+    [DifficultyLevel.EASY]: testToEdit?.difficultyDistribution?.easy || 0,
+    [DifficultyLevel.MEDIUM]: testToEdit?.difficultyDistribution?.medium || 0,
+    [DifficultyLevel.HARD]: testToEdit?.difficultyDistribution?.hard || 0
   });
+
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (testToEdit) {
@@ -71,25 +87,29 @@ export const CreateTest: React.FC = () => {
         type: 'text',
         options: ['', '', '', ''],
         correctAnswer: -1,
-        difficultyLevel: 'medium',
+        difficultyLevel: DifficultyLevel.MEDIUM,
         subject: testToEdit.subject
       });
       setDifficultyDistribution(testToEdit.difficultyDistribution);
       setTargetRatio(testToEdit.targetDifficultyRatio || {
-        easy: 30,
-        medium: 50,
-        hard: 20
+        [DifficultyLevel.EASY]: 30,
+        [DifficultyLevel.MEDIUM]: 50,
+        [DifficultyLevel.HARD]: 20
       });
     }
   }, [testToEdit]);
 
   useEffect(() => {
     const newDistribution = questions.reduce(
-      (acc: { easy: number; medium: number; hard: number }, q) => {
-        (acc[q.difficultyLevel as keyof typeof acc])++;
+      (acc: DifficultyDistribution, q) => {
+        acc[q.difficultyLevel as DifficultyLevel]++;
         return acc;
       },
-      { easy: 0, medium: 0, hard: 0 }
+      {
+        [DifficultyLevel.EASY]: 0,
+        [DifficultyLevel.MEDIUM]: 0,
+        [DifficultyLevel.HARD]: 0
+      }
     );
     setDifficultyDistribution(newDistribution);
   }, [questions]);
@@ -98,6 +118,19 @@ export const CreateTest: React.FC = () => {
     const newOptions = [...currentQuestion.options];
     newOptions[index] = value;
     setCurrentQuestion({ ...currentQuestion, options: newOptions });
+  };
+
+  const handleOptionImageUpload = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newOptions = [...currentQuestion.options];
+        newOptions[index] = `[IMG]${reader.result}`; // Prefix to identify image content
+        setCurrentQuestion({ ...currentQuestion, options: newOptions });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,7 +169,7 @@ export const CreateTest: React.FC = () => {
         type: 'text',
         options: ['', '', '', ''],
         correctAnswer: -1,
-        difficultyLevel: 'medium',
+        difficultyLevel: DifficultyLevel.MEDIUM,
         subject: subject
       });
     }
@@ -162,7 +195,7 @@ export const CreateTest: React.FC = () => {
         type: 'text',
         options: ['', '', '', ''],
         correctAnswer: -1,
-        difficultyLevel: 'medium',
+        difficultyLevel: DifficultyLevel.MEDIUM,
         subject: subject
       });
     } else {
@@ -170,30 +203,40 @@ export const CreateTest: React.FC = () => {
     }
   };
 
-  const handleSubmitTest = () => {
-    if (currentQuestion.text && !questions.includes(currentQuestion)) {
-      handleSaveQuestion();
+  const handleSubmitTest = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      if (questions.length === 0) {
+        throw new Error('Please add at least one question');
+      }
+      
+      const testData = {
+        questions,
+        title: testTitle,
+        difficultyDistribution,
+        totalQuestions: questions.length,
+      };
+      
+      const response = await fetch('/api/tests', {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save test');
+      }
+      
+      navigate('/tests');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const test = {
-      id: testToEdit?.id || Date.now().toString(),
-      name: testTitle,
-      subject,
-      dateCreated: testToEdit?.dateCreated || new Date().toISOString(),
-      status: 'active',
-      studentsCompleted: testToEdit?.studentsCompleted || 0,
-      totalStudents: testToEdit?.totalStudents || 30,
-      averageScore: testToEdit?.averageScore || 0,
-      duration: parseInt(duration),
-      questions,
-      difficultyDistribution,
-      targetDifficultyRatio: targetRatio
-    };
-
-    navigate('/teacher-dashboard', {
-      state: { test, isEditing },
-    });
-  };
+  }; // Add closing brace here
 
   const handleRatioChange = (level: DifficultyLevel, value: number) => {
     const newRatio = { ...targetRatio, [level]: value };
@@ -292,40 +335,40 @@ export const CreateTest: React.FC = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Easy Questions ({targetRatio.easy}%)
+                Easy Questions ({targetRatio[DifficultyLevel.EASY]}%)
               </label>
               <input
                 type="range"
                 min="0"
                 max="100"
-                value={targetRatio.easy}
-                onChange={(e) => handleRatioChange('easy', parseInt(e.target.value))}
+                value={targetRatio[DifficultyLevel.EASY]}
+                onChange={(e) => handleRatioChange(DifficultyLevel.EASY, parseInt(e.target.value))}
                 className="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Medium Questions ({targetRatio.medium}%)
+                Medium Questions ({targetRatio[DifficultyLevel.MEDIUM]}%)
               </label>
               <input
                 type="range"
                 min="0"
                 max="100"
-                value={targetRatio.medium}
-                onChange={(e) => handleRatioChange('medium', parseInt(e.target.value))}
+                value={targetRatio[DifficultyLevel.MEDIUM]}
+                onChange={(e) => handleRatioChange(DifficultyLevel.MEDIUM, parseInt(e.target.value))}
                 className="w-full h-2 bg-yellow-200 rounded-lg appearance-none cursor-pointer"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hard Questions ({targetRatio.hard}%)
+                Hard Questions ({targetRatio[DifficultyLevel.HARD]}%)
               </label>
               <input
                 type="range"
                 min="0"
                 max="100"
-                value={targetRatio.hard}
-                onChange={(e) => handleRatioChange('hard', parseInt(e.target.value))}
+                value={targetRatio[DifficultyLevel.HARD]}
+                onChange={(e) => handleRatioChange(DifficultyLevel.HARD, parseInt(e.target.value))}
                 className="w-full h-2 bg-red-200 rounded-lg appearance-none cursor-pointer"
               />
             </div>
@@ -342,36 +385,36 @@ export const CreateTest: React.FC = () => {
             <div className="bg-green-50 p-4 rounded-lg">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-green-700">Easy</span>
-                <span className="text-lg font-semibold text-green-700">{difficultyDistribution.easy}</span>
+                <span className="text-lg font-semibold text-green-700">{difficultyDistribution[DifficultyLevel.EASY]}</span>
               </div>
               <div className="w-full bg-green-200 rounded-full h-2">
                 <div
                   className="bg-green-600 rounded-full h-2"
-                  style={{ width: `${(difficultyDistribution.easy / questions.length) * 100 || 0}%` }}
+                  style={{ width: `${(difficultyDistribution[DifficultyLevel.EASY] / questions.length) * 100 || 0}%` }}
                 />
               </div>
             </div>
             <div className="bg-yellow-50 p-4 rounded-lg">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-yellow-700">Medium</span>
-                <span className="text-lg font-semibold text-yellow-700">{difficultyDistribution.medium}</span>
+                <span className="text-lg font-semibold text-yellow-700">{difficultyDistribution[DifficultyLevel.MEDIUM]}</span>
               </div>
               <div className="w-full bg-yellow-200 rounded-full h-2">
                 <div
                   className="bg-yellow-600 rounded-full h-2"
-                  style={{ width: `${(difficultyDistribution.medium / questions.length) * 100 || 0}%` }}
+                  style={{ width: `${(difficultyDistribution[DifficultyLevel.MEDIUM] / questions.length) * 100 || 0}%` }}
                 />
               </div>
             </div>
             <div className="bg-red-50 p-4 rounded-lg">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-red-700">Hard</span>
-                <span className="text-lg font-semibold text-red-700">{difficultyDistribution.hard}</span>
+                <span className="text-lg font-semibold text-red-700">{difficultyDistribution[DifficultyLevel.HARD]}</span>
               </div>
               <div className="w-full bg-red-200 rounded-full h-2">
                 <div
                   className="bg-red-600 rounded-full h-2"
-                  style={{ width: `${(difficultyDistribution.hard / questions.length) * 100 || 0}%` }}
+                  style={{ width: `${(difficultyDistribution[DifficultyLevel.HARD] / questions.length) * 100 || 0}%` }}
                 />
               </div>
             </div>
@@ -435,15 +478,15 @@ export const CreateTest: React.FC = () => {
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty Level</label>
             <div className="flex space-x-4">
-              {(['easy', 'medium', 'hard'] as DifficultyLevel[]).map((level) => (
+              {([DifficultyLevel.EASY, DifficultyLevel.MEDIUM, DifficultyLevel.HARD] as DifficultyLevel[]).map((level) => (
                 <button
                   key={level}
                   onClick={() => setCurrentQuestion({ ...currentQuestion, difficultyLevel: level })}
                   className={`px-4 py-2 rounded-md text-sm font-medium ${
                     currentQuestion.difficultyLevel === level
-                      ? level === 'easy'
+                      ? level === DifficultyLevel.EASY
                         ? 'bg-green-600 text-white'
-                        : level === 'medium'
+                        : level === DifficultyLevel.MEDIUM
                         ? 'bg-yellow-600 text-white'
                         : 'bg-red-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -512,21 +555,25 @@ export const CreateTest: React.FC = () => {
           <div className="space-y-4">
             <label className="block text-sm font-medium text-gray-700">Options</label>
             {currentQuestion.options.map((option, index) => (
-              <div key={index} className="flex items-center space-x-4">
-                <input
-                  type="radio"
-                  name="correctAnswer"
-                  checked={currentQuestion.correctAnswer === index}
-                  onChange={() => setCurrentQuestion({ ...currentQuestion, correctAnswer: index })}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                />
+              <div key={index} className="option-container">
                 <input
                   type="text"
-                  value={option}
+                  value={option.startsWith('[IMG]') ? '' : option}
                   onChange={(e) => handleOptionChange(index, e.target.value)}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder={`Option ${index + 1}`}
                 />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleOptionImageUpload(index, e)}
+                />
+                {option.startsWith('[IMG]') && (
+                  <img 
+                    src={option.replace('[IMG]', '')} 
+                    alt={`Option ${index + 1}`} 
+                    style={{ maxWidth: '200px', marginTop: '10px' }}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -593,7 +640,7 @@ export const CreateTest: React.FC = () => {
                       type: 'text',
                       options: ['', '', '', ''],
                       correctAnswer: -1,
-                      difficultyLevel: 'medium',
+                      difficultyLevel: DifficultyLevel.MEDIUM,
                       subject: subject
                     });
                   }}
@@ -608,7 +655,7 @@ export const CreateTest: React.FC = () => {
           {/* Distribution Warnings */}
           {questions.length > 0 && (
             <div className="mt-6">
-              {Math.abs(difficultyDistribution.easy - difficultyDistribution.hard) > questions.length * 0.4 && (
+              {Math.abs(difficultyDistribution[DifficultyLevel.EASY] - difficultyDistribution[DifficultyLevel.HARD]) > questions.length * 0.4 && (
                 <div className="flex items-center space-x-2 text-yellow-700 bg-yellow-50 p-4 rounded-lg">
                   <AlertTriangle className="h-5 w-5" />
                   <span className="text-sm">
@@ -627,6 +674,11 @@ export const CreateTest: React.FC = () => {
             </div>
           )}
         </div>
+        {error && (
+          <div className="mt-2 text-red-600 text-sm">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );
