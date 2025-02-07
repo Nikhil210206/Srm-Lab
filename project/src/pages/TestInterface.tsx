@@ -15,7 +15,7 @@ const TestInterface: React.FC = () => {
   };
 
   const handleSubmit = () => {
-    const score = test.questions.reduce((acc, question, index) => {
+    const score = test.questions.reduce((acc: number, question: { correctAnswer: number; }, index: string | number) => {
       if (question.correctAnswer === answers[index]) {
         return acc + 1;
       }
@@ -29,7 +29,7 @@ const TestInterface: React.FC = () => {
       <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm p-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">{test.title}</h1>
         <div className="space-y-6">
-          {test.questions.map((question, questionIndex) => (
+          {test.questions.map((question: { text: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; options: any[]; }, questionIndex: React.Key | null | undefined) => (
             <div key={questionIndex} className="border-b border-gray-200 pb-6">
               <h2 className="text-lg font-medium text-gray-900">{question.text}</h2>
               <div className="mt-4 space-y-2">

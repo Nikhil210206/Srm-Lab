@@ -119,8 +119,7 @@ export const CreateTest: React.FC = () => {
     newOptions[index] = value;
     setCurrentQuestion({ ...currentQuestion, options: newOptions });
   };
-
-  const handleOptionImageUpload = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+const handleOptionImageUpload = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -146,7 +145,6 @@ export const CreateTest: React.FC = () => {
       reader.readAsDataURL(file);
     }
   };
-
   const handleSaveQuestion = () => {
     if (currentQuestionIndex < questions.length) {
       // Update existing question
@@ -154,7 +152,6 @@ export const CreateTest: React.FC = () => {
       updatedQuestions[currentQuestionIndex] = currentQuestion;
       setQuestions(updatedQuestions);
     } else {
-      // Add new question
       setQuestions([...questions, currentQuestion]);
     }
     handleNextQuestion();
