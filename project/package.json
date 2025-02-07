@@ -10,10 +10,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-spring/web": "^9.7.5",
+    "@react-three/drei": "^9.121.4",
+    "@react-three/fiber": "^8.17.14",
+    "@tsparticles/engine": "^3.8.1",
+    "framer-motion": "^12.1.0",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.22.3"
+    "react-parallax-tilt": "^1.7.278",
+    "react-router-dom": "^6.22.3",
+    "react-tsparticles": "^2.12.2",
+    "react-type-animation": "^3.2.0",
+    "three": "^0.173.0",
+    "tsparticles": "^3.8.1",
+    "use-sound": "^4.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

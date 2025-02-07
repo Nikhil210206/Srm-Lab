@@ -1,12 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Plus, Trash2, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { Save, Plus, Trash2, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Image as ImageIcon, Type, Upload } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Question, QuestionType } from '../types';
 
-interface Question {
+const availableSubjects = [
+  'Mathematics',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'Computer Science',
+  'English',
+  'History',
+  'Geography'
+];
+
+// Define proper enum for difficulty levels
+enum DifficultyLevel {
+  EASY = 'easy',
+  MEDIUM = 'medium',
+  HARD = 'hard'
+}
+
+interface DifficultyDistribution {
+  [DifficultyLevel.EASY]: number;
+  [DifficultyLevel.MEDIUM]: number;
+  [DifficultyLevel.HARD]: number;
+}
+
+interface QuestionFormData extends Question {
   id: number;
   text: string;
+  type: QuestionType;
+  imageUrl?: string;
   options: string[];
   correctAnswer: number;
+  difficultyLevel: DifficultyLevel;
+  subject: string;
+  explanation?: string;
 }
 
 export const CreateTest: React.FC = () => {
@@ -18,16 +48,32 @@ export const CreateTest: React.FC = () => {
   const [testTitle, setTestTitle] = useState(testToEdit?.name || '');
   const [subject, setSubject] = useState(testToEdit?.subject || '');
   const [duration, setDuration] = useState(testToEdit?.duration?.toString() || '60');
-  const [questions, setQuestions] = useState<Question[]>(testToEdit?.questions || []);
+  const [questions, setQuestions] = useState<QuestionFormData[]>(testToEdit?.questions || []);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [currentQuestion, setCurrentQuestion] = useState<Question>(
-    questions[currentQuestionIndex] || {
-      id: 1,
-      text: '',
-      options: ['', '', '', ''],
-      correctAnswer: -1,
-    }
-  );
+  const [currentQuestion, setCurrentQuestion] = useState<QuestionFormData>({
+    id: 1,
+    text: '',
+    type: 'text',
+    options: ['', '', '', ''],
+    correctAnswer: -1,
+    difficultyLevel: DifficultyLevel.MEDIUM,
+    subject: subject
+  });
+
+  const [targetRatio, setTargetRatio] = useState({
+    [DifficultyLevel.EASY]: testToEdit?.targetDifficultyRatio?.easy || 30,
+    [DifficultyLevel.MEDIUM]: testToEdit?.targetDifficultyRatio?.medium || 50,
+    [DifficultyLevel.HARD]: testToEdit?.targetDifficultyRatio?.hard || 20
+  });
+
+  const [difficultyDistribution, setDifficultyDistribution] = useState<DifficultyDistribution>({
+    [DifficultyLevel.EASY]: testToEdit?.difficultyDistribution?.easy || 0,
+    [DifficultyLevel.MEDIUM]: testToEdit?.difficultyDistribution?.medium || 0,
+    [DifficultyLevel.HARD]: testToEdit?.difficultyDistribution?.hard || 0
+  });
+
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (testToEdit) {
@@ -38,16 +84,66 @@ export const CreateTest: React.FC = () => {
       setCurrentQuestion(testToEdit.questions[0] || {
         id: 1,
         text: '',
+        type: 'text',
         options: ['', '', '', ''],
         correctAnswer: -1,
+        difficultyLevel: DifficultyLevel.MEDIUM,
+        subject: testToEdit.subject
+      });
+      setDifficultyDistribution(testToEdit.difficultyDistribution);
+      setTargetRatio(testToEdit.targetDifficultyRatio || {
+        [DifficultyLevel.EASY]: 30,
+        [DifficultyLevel.MEDIUM]: 50,
+        [DifficultyLevel.HARD]: 20
       });
     }
   }, [testToEdit]);
+
+  useEffect(() => {
+    const newDistribution = questions.reduce(
+      (acc: DifficultyDistribution, q) => {
+        acc[q.difficultyLevel as DifficultyLevel]++;
+        return acc;
+      },
+      {
+        [DifficultyLevel.EASY]: 0,
+        [DifficultyLevel.MEDIUM]: 0,
+        [DifficultyLevel.HARD]: 0
+      }
+    );
+    setDifficultyDistribution(newDistribution);
+  }, [questions]);
 
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...currentQuestion.options];
     newOptions[index] = value;
     setCurrentQuestion({ ...currentQuestion, options: newOptions });
+  };
+const handleOptionImageUpload = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newOptions = [...currentQuestion.options];
+        newOptions[index] = `[IMG]${reader.result}`; // Prefix to identify image content
+        setCurrentQuestion({ ...currentQuestion, options: newOptions });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCurrentQuestion({
+          ...currentQuestion,
+          imageUrl: reader.result as string
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   };
   const handleSaveQuestion = () => {
     if (currentQuestionIndex < questions.length) {
@@ -67,8 +163,11 @@ export const CreateTest: React.FC = () => {
       setCurrentQuestion(questions[currentQuestionIndex + 1] || {
         id: questions.length + 1,
         text: '',
+        type: 'text',
         options: ['', '', '', ''],
         correctAnswer: -1,
+        difficultyLevel: DifficultyLevel.MEDIUM,
+        subject: subject
       });
     }
   };
@@ -90,35 +189,59 @@ export const CreateTest: React.FC = () => {
       setCurrentQuestion({
         id: 1,
         text: '',
+        type: 'text',
         options: ['', '', '', ''],
         correctAnswer: -1,
+        difficultyLevel: DifficultyLevel.MEDIUM,
+        subject: subject
       });
     } else {
       setCurrentQuestion(updatedQuestions[currentQuestionIndex]);
     }
   };
 
-  const handleSubmitTest = () => {
-    if (currentQuestion.text && !questions.includes(currentQuestion)) {
-      handleSaveQuestion();
+  const handleSubmitTest = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      if (questions.length === 0) {
+        throw new Error('Please add at least one question');
+      }
+      
+      const testData = {
+        questions,
+        title: testTitle,
+        difficultyDistribution,
+        totalQuestions: questions.length,
+      };
+      
+      const response = await fetch('/api/tests', {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save test');
+      }
+      
+      navigate('/tests');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
+  }; // Add closing brace here
 
-    const test = {
-      id: testToEdit?.id || Date.now().toString(),
-      name: testTitle,
-      subject,
-      dateCreated: testToEdit?.dateCreated || new Date().toISOString(),
-      status: 'active',
-      studentsCompleted: testToEdit?.studentsCompleted || 0,
-      totalStudents: testToEdit?.totalStudents || 30,
-      averageScore: testToEdit?.averageScore || 0,
-      duration: parseInt(duration),
-      questions,
-    };
-
-    navigate('/teacher-dashboard', {
-      state: { test, isEditing },
-    });
+  const handleRatioChange = (level: DifficultyLevel, value: number) => {
+    const newRatio = { ...targetRatio, [level]: value };
+    const total = Object.values(newRatio).reduce((sum, val) => sum + val, 0);
+    
+    if (total <= 100) {
+      setTargetRatio(newRatio);
+    }
   };
 
   const isTestValid = () => {
@@ -132,8 +255,16 @@ export const CreateTest: React.FC = () => {
           q.text.trim() !== '' &&
           q.options.every((opt) => opt.trim() !== '') &&
           q.correctAnswer !== -1
-      )
+      ) &&
+      Object.values(targetRatio).reduce((sum, val) => sum + val, 0) === 100
     );
+  };
+
+  const getRatioStatus = () => {
+    const total = Object.values(targetRatio).reduce((sum, val) => sum + val, 0);
+    if (total < 100) return `${100 - total}% remaining to allocate`;
+    if (total > 100) return `${total - 100}% over allocation`;
+    return 'Ratio properly allocated';
   };
 
   return (
@@ -169,13 +300,18 @@ export const CreateTest: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Subject</label>
-              <input
-                type="text"
+              <select
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                placeholder="Enter subject"
-              />
+              >
+                <option value="">Select a subject</option>
+                {availableSubjects.map((subj) => (
+                  <option key={subj} value={subj}>
+                    {subj}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Duration (minutes)</label>
@@ -190,17 +326,94 @@ export const CreateTest: React.FC = () => {
           </div>
         </div>
 
-        {/* Test Summary */}
+        {/* Difficulty Ratio Settings */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Test Summary</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">Total Questions</p>
-              <p className="text-2xl font-semibold text-gray-900">{questions.length}</p>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Target Difficulty Distribution</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Easy Questions ({targetRatio[DifficultyLevel.EASY]}%)
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={targetRatio[DifficultyLevel.EASY]}
+                onChange={(e) => handleRatioChange(DifficultyLevel.EASY, parseInt(e.target.value))}
+                className="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer"
+              />
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">Estimated Time</p>
-              <p className="text-2xl font-semibold text-gray-900">{duration} minutes</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Medium Questions ({targetRatio[DifficultyLevel.MEDIUM]}%)
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={targetRatio[DifficultyLevel.MEDIUM]}
+                onChange={(e) => handleRatioChange(DifficultyLevel.MEDIUM, parseInt(e.target.value))}
+                className="w-full h-2 bg-yellow-200 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Hard Questions ({targetRatio[DifficultyLevel.HARD]}%)
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={targetRatio[DifficultyLevel.HARD]}
+                onChange={(e) => handleRatioChange(DifficultyLevel.HARD, parseInt(e.target.value))}
+                className="w-full h-2 bg-red-200 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+            <div className="text-sm text-gray-600 mt-2">
+              {getRatioStatus()}
+            </div>
+          </div>
+        </div>
+
+        {/* Current Distribution */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Current Question Distribution</h2>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-green-700">Easy</span>
+                <span className="text-lg font-semibold text-green-700">{difficultyDistribution[DifficultyLevel.EASY]}</span>
+              </div>
+              <div className="w-full bg-green-200 rounded-full h-2">
+                <div
+                  className="bg-green-600 rounded-full h-2"
+                  style={{ width: `${(difficultyDistribution[DifficultyLevel.EASY] / questions.length) * 100 || 0}%` }}
+                />
+              </div>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-yellow-700">Medium</span>
+                <span className="text-lg font-semibold text-yellow-700">{difficultyDistribution[DifficultyLevel.MEDIUM]}</span>
+              </div>
+              <div className="w-full bg-yellow-200 rounded-full h-2">
+                <div
+                  className="bg-yellow-600 rounded-full h-2"
+                  style={{ width: `${(difficultyDistribution[DifficultyLevel.MEDIUM] / questions.length) * 100 || 0}%` }}
+                />
+              </div>
+            </div>
+            <div className="bg-red-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-red-700">Hard</span>
+                <span className="text-lg font-semibold text-red-700">{difficultyDistribution[DifficultyLevel.HARD]}</span>
+              </div>
+              <div className="w-full bg-red-200 rounded-full h-2">
+                <div
+                  className="bg-red-600 rounded-full h-2"
+                  style={{ width: `${(difficultyDistribution[DifficultyLevel.HARD] / questions.length) * 100 || 0}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -229,6 +442,59 @@ export const CreateTest: React.FC = () => {
             </div>
           </div>
 
+          {/* Question Type Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Question Type</label>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => setCurrentQuestion({ ...currentQuestion, type: 'text' })}
+                className={`inline-flex items-center px-4 py-2 rounded-md ${
+                  currentQuestion.type === 'text'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Type className="h-5 w-5 mr-2" />
+                Text Only
+              </button>
+              <button
+                onClick={() => setCurrentQuestion({ ...currentQuestion, type: 'image' })}
+                className={`inline-flex items-center px-4 py-2 rounded-md ${
+                  currentQuestion.type === 'image'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <ImageIcon className="h-5 w-5 mr-2" />
+                Image + Text
+              </button>
+            </div>
+          </div>
+
+          {/* Difficulty Level Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty Level</label>
+            <div className="flex space-x-4">
+              {([DifficultyLevel.EASY, DifficultyLevel.MEDIUM, DifficultyLevel.HARD] as DifficultyLevel[]).map((level) => (
+                <button
+                  key={level}
+                  onClick={() => setCurrentQuestion({ ...currentQuestion, difficultyLevel: level })}
+                  className={`px-4 py-2 rounded-md text-sm font-medium ${
+                    currentQuestion.difficultyLevel === level
+                      ? level === DifficultyLevel.EASY
+                        ? 'bg-green-600 text-white'
+                        : level === DifficultyLevel.MEDIUM
+                        ? 'bg-yellow-600 text-white'
+                        : 'bg-red-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {level.charAt(0).toUpperCase() + level.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Question Text */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">Question Text</label>
@@ -241,27 +507,88 @@ export const CreateTest: React.FC = () => {
             />
           </div>
 
+          {/* Image Upload (if image type) */}
+          {currentQuestion.type === 'image' && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Question Image</label>
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                <div className="space-y-1 text-center">
+                  {currentQuestion.imageUrl ? (
+                    <div>
+                      <img
+                        src={currentQuestion.imageUrl}
+                        alt="Question"
+                        className="mx-auto h-32 w-auto"
+                      />
+                      <button
+                        onClick={() => setCurrentQuestion({ ...currentQuestion, imageUrl: undefined })}
+                        className="mt-2 text-sm text-red-600 hover:text-red-500"
+                      >
+                        Remove Image
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                      <div className="flex text-sm text-gray-600">
+                        <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                          <span>Upload a file</span>
+                          <input
+                            type="file"
+                            className="sr-only"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Options */}
           <div className="space-y-4">
             <label className="block text-sm font-medium text-gray-700">Options</label>
             {currentQuestion.options.map((option, index) => (
-              <div key={index} className="flex items-center space-x-4">
-                <input
-                  type="radio"
-                  name="correctAnswer"
-                  checked={currentQuestion.correctAnswer === index}
-                  onChange={() => setCurrentQuestion({ ...currentQuestion, correctAnswer: index })}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                />
+              <div key={index} className="option-container">
                 <input
                   type="text"
-                  value={option}
+                  value={option.startsWith('[IMG]') ? '' : option}
                   onChange={(e) => handleOptionChange(index, e.target.value)}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder={`Option ${index + 1}`}
                 />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleOptionImageUpload(index, e)}
+                />
+                {option.startsWith('[IMG]') && (
+                  <img 
+                    src={option.replace('[IMG]', '')} 
+                    alt={`Option ${index + 1}`} 
+                    style={{ maxWidth: '200px', marginTop: '10px' }}
+                  />
+                )}
               </div>
             ))}
+          </div>
+
+          {/* Explanation */}
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Explanation (Optional)
+            </label>
+            <textarea
+              value={currentQuestion.explanation || ''}
+              onChange={(e) =>
+                setCurrentQuestion({ ...currentQuestion, explanation: e.target.value })
+              }
+              rows={2}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="Explain the correct answer (optional)"
+            />
           </div>
 
           {/* Question Navigation */}
@@ -307,8 +634,11 @@ export const CreateTest: React.FC = () => {
                     setCurrentQuestion({
                       id: questions.length + 1,
                       text: '',
+                      type: 'text',
                       options: ['', '', '', ''],
                       correctAnswer: -1,
+                      difficultyLevel: DifficultyLevel.MEDIUM,
+                      subject: subject
                     });
                   }}
                   className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center justify-center"
@@ -318,7 +648,34 @@ export const CreateTest: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Distribution Warnings */}
+          {questions.length > 0 && (
+            <div className="mt-6">
+              {Math.abs(difficultyDistribution[DifficultyLevel.EASY] - difficultyDistribution[DifficultyLevel.HARD]) > questions.length * 0.4 && (
+                <div className="flex items-center space-x-2 text-yellow-700 bg-yellow-50 p-4 rounded-lg">
+                  <AlertTriangle className="h-5 w-5" />
+                  <span className="text-sm">
+                    Consider balancing the difficulty levels for a better assessment
+                  </span>
+                </div>
+              )}
+              {Object.values(targetRatio).reduce((sum, val) => sum + val, 0) !== 100 && (
+                <div className="mt-2 flex items-center space-x-2 text-red-700 bg-red-50 p-4 rounded-lg">
+                  <AlertTriangle className="h-5 w-5" />
+                  <span className="text-sm">
+                    The difficulty ratio must total 100%
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+        {error && (
+          <div className="mt-2 text-red-600 text-sm">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );
