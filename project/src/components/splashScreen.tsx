@@ -5,8 +5,6 @@ import { loadFull } from "tsparticles";
 import { GraduationCap, Book, Shield } from "lucide-react";
 import useSound from "use-sound";
 import whooshSfx from "./sounds/whoosh.mp3"; // Ensure this path is correct
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Sphere } from "@react-three/drei";
 
 // Particle Background Component
 const ParticleBackground = () => {
@@ -68,28 +66,6 @@ const IconMorph = () => {
       {icon === "book" && <Book className="w-24 h-24 text-white holographic" />}
       {icon === "shield" && <Shield className="w-24 h-24 text-white holographic" />}
     </motion.div>
-  );
-};
-
-// 3D Model Component
-const ThreeDModel = () => {
-  return (
-    <Canvas>
-      <ambientLight intensity={0.5} />
-      <pointLight position={[10, 10, 10]} />
-      <Sphere args={[1, 32, 32]}>
-        <meshStandardMaterial color="purple" />
-      </Sphere>
-      <OrbitControls enableZoom={false} enablePan={false} />
-      <motion.mesh
-        animate={{ rotation: [0, Math.PI * 2, 0] }}
-        transition={{ duration: 10, repeat: Infinity, repeatType: "loop" }}
-      >
-        <Sphere args={[1, 32, 32]}>
-          <meshStandardMaterial color="purple" />
-        </Sphere>
-      </motion.mesh>
-    </Canvas>
   );
 };
 
@@ -192,7 +168,6 @@ const SplashScreen: React.FC = () => {
     >
       <ParticleBackground />
       <IconMorph />
-      <ThreeDModel />
       <motion.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
