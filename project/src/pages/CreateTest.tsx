@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Plus, Trash2, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Image as ImageIcon, Type, Upload } from 'lucide-react';
+import { api } from '../services/api';
+
+
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Question, QuestionType } from '../types';
 
@@ -45,7 +48,8 @@ const availableSubjects = [
     id: string;
   }
 
-  export const CreateTest: React.FC = () => {
+export const StudentTestCreation: React.FC = () => {
+
     const navigate = useNavigate();
     const location = useLocation();
     const testToEdit = location.state?.testToEdit;
@@ -79,17 +83,13 @@ const availableSubjects = [
     });
 
     const [error, setError] = useState<string | null>(null);
-const [testSchedule, setTestSchedule] = useState({
+  const [testSchedule, setTestSchedule] = useState({
       isScheduled: false,
       scheduledDate: '',
       scheduledTime: '',
-      timeLimit: 60,
-      allowLateSubmissions: false,
-      accessWindow: {
-        start: '',
-        end: ''
-      }
+      timeLimit: 60
     });
+
 
     // Update the participants state with proper typing and initial value
     const [participants, setParticipants] = useState<Participant[]>([]);
@@ -233,27 +233,38 @@ const [testSchedule, setTestSchedule] = useState({
           title: testTitle,
           subject,
           duration: parseInt(duration),
-          questions,
-          participants,
-          testSchedule,
-          difficultyDistribution,
-          targetRatio,
-          isEditing
+          questions: questions.map(q => ({
+            text: q.text,
+            type: q.type,
+            image_url: q.imageUrl,
+            options: q.options,
+            correct_answer: q.correctAnswer,
+            difficulty_level: q.difficultyLevel,
+            subject: q.subject,
+            explanation: q.explanation
+          })),
+          participants: participants.map(p => p.email),
+          test_schedule: {
+            is_scheduled: testSchedule.isScheduled,
+            scheduled_date: testSchedule.scheduledDate,
+            scheduled_time: testSchedule.scheduledTime,
+            time_limit: testSchedule.timeLimit,
+            allow_late_submissions: testSchedule.allowLateSubmissions,
+            access_window: testSchedule.accessWindow
+          },
+          difficulty_distribution: difficultyDistribution,
+          target_ratio: targetRatio
         };
 
-        // Make API call
-        const response = await fetch('/api/tests', {
-          method: isEditing ? 'PUT' : 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(testData),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to save test');
+        // Make API call using the api service
+        if (isEditing) {
+          await api.updateTest(testToEdit.id, testData);
+        } else {
+          await api.createTest(testData);
         }
+
+
+
 
         // Success - navigate to tests page
         navigate('/tests');
@@ -275,19 +286,23 @@ const [testSchedule, setTestSchedule] = useState({
     };
 
     const isTestValid = () => {
+      // Check for at least one valid question
+      const hasValidQuestion = questions.some(q => 
+        q.text.trim() !== '' && 
+        q.correctAnswer !== -1 &&
+        q.options.every(opt => opt.trim() !== '')
+      );
+      
       return (
         testTitle.trim() !== '' &&
         subject !== '' &&
         duration !== '' &&
         parseInt(duration) > 0 &&
         questions.length > 0 &&
-        questions.every(q => 
-          q.text.trim() !== '' && 
-          q.correctAnswer !== -1 &&
-          q.options.every(opt => opt.trim() !== '')
-        )
+        hasValidQuestion
       );
     };
+
 
     const getRatioStatus = () => {
       const total = Object.values(targetRatio).reduce((sum, val) => sum + val, 0);
@@ -315,9 +330,10 @@ const [testSchedule, setTestSchedule] = useState({
           {/* Test Details Section */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {isEditing ? 'Edit Test' : 'Create New Test'}
-              </h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isEditing ? 'Edit Student Test' : 'Create New Student Test'}
+          </h1>
+
               <button
                 onClick={handleSubmitTest}
                 disabled={isSubmitting || !isTestValid()}
@@ -338,7 +354,8 @@ const [testSchedule, setTestSchedule] = useState({
                 ) : (
                   <>
                     <CheckCircle className="h-5 w-5 mr-2" />
-                    {isEditing ? 'Update Test' : 'Submit Test'}
+                {isEditing ? 'Update Test' : 'Submit Student Test'}
+
                   </>
                 )}
               </button>

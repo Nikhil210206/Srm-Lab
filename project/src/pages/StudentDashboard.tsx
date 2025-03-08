@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BookOpen, Clock, CheckCircle, BarChart2, AlertTriangle } from 'lucide-react';
 
 const mockTests = [
@@ -40,11 +41,12 @@ const performanceData = {
   weakAreas: ['Calculus', 'Quantum Physics', 'Organic Chemistry'],
 };
 
-export const StudentDashboard: React.FC = () => {
+const StudentDashboard: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
           <h1 className="text-2xl font-bold text-gray-900">
             Welcome back, John! Ready for your next challenge?
@@ -54,7 +56,6 @@ export const StudentDashboard: React.FC = () => {
           </p>
         </div>
         
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
           <StatCard
             icon={<BookOpen className="h-6 w-6 text-indigo-600" />}
@@ -79,7 +80,6 @@ export const StudentDashboard: React.FC = () => {
           />
         </div>
 
-        {/* Available Tests */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-medium text-gray-900">Available Tests</h2>
@@ -119,6 +119,7 @@ export const StudentDashboard: React.FC = () => {
                   </div>
                   <div className="ml-4">
                     <button
+                      onClick={() => navigate('/test-interface', { state: { test } })}
                       className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md ${
                         test.status === 'completed'
                           ? 'text-gray-700 bg-gray-100 hover:bg-gray-200'
@@ -136,7 +137,6 @@ export const StudentDashboard: React.FC = () => {
           </ul>
         </div>
 
-        {/* Weak Areas */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">Areas for Improvement</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -213,3 +213,5 @@ const TestStatusBadge: React.FC<{
       return null;
   }
 };
+
+export default StudentDashboard;
