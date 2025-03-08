@@ -10,7 +10,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 
 import TeacherDashboard from "./pages/TeacherDashboard";
 
-import CreateTest from "./pages/CreateTest";
+import { CreateTest } from "./pages/CreateTest";
 
 import TestInterface from "./pages/TestInterface";
 import Home from "./pages/Home";

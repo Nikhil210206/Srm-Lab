@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 class UserBase(BaseModel):
@@ -21,8 +21,28 @@ class TestBase(BaseModel):
     subject: str
     duration: int
 
-class TestCreate(TestBase):
-    pass
+class TestCreate(BaseModel):
+    title: str
+    subject: str
+    duration: int
+    questions: List['Question']
+    participants: List[str]
+    test_schedule: Optional['TestSchedule'] = None
+    difficulty_distribution: Optional[Dict[str, int]] = None
+    target_ratio: Optional[Dict[str, int]] = None
+
+class TestUpdate(BaseModel):
+    title: Optional[str] = None
+    subject: Optional[str] = None
+    duration: Optional[int] = None
+    questions: Optional[List['Question']] = None
+    participants: Optional[List[str]] = None
+    test_schedule: Optional['TestSchedule'] = None
+    difficulty_distribution: Optional[Dict[str, int]] = None
+    target_ratio: Optional[Dict[str, int]] = None
+
+class TestOut(TestCreate):
+    id: str
 
 class Test(TestBase):
     id: int
@@ -37,6 +57,24 @@ class QuestionBase(BaseModel):
 
 class QuestionCreate(QuestionBase):
     test_id: int
+
+class Question(BaseModel):
+    text: str
+    type: str
+    image_url: Optional[str] = None
+    options: List[str]
+    correct_answer: int
+    difficulty_level: str
+    subject: str
+    explanation: Optional[str] = None
+
+class TestSchedule(BaseModel):
+    is_scheduled: bool = False
+    scheduled_date: Optional[str] = None
+    scheduled_time: Optional[str] = None
+    time_limit: Optional[int] = None
+    allow_late_submissions: Optional[bool] = False
+    access_window: Optional[Dict[str, str]] = None  # e.g., {"start": "...", "end": "..."}
 
 class Question(QuestionBase):
     id: int
@@ -56,8 +94,15 @@ class TestResultBase(BaseModel):
     time_spent: int
     submitted_at: datetime
 
-class TestResultCreate(TestResultBase):
-    answers: List[UserAnswerBase]
+class TestResultCreate(BaseModel):
+    user_id: str
+    answers: List[Dict[str, Any]]  # Structure depends on frontend
+    time_spent: int
+    score: int
+
+class TestResultOut(TestResultCreate):
+    id: str
+    test_id: str
 
 class TestResult(TestResultBase):
     id: int

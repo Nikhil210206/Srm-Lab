@@ -48,7 +48,17 @@ const availableSubjects = [
     id: string;
   }
 
-export const StudentTestCreation: React.FC = () => {
+  // Add or update the TestSchedule interface
+  interface TestSchedule {
+    isScheduled: boolean;
+    scheduledDate: string;
+    scheduledTime: string;
+    timeLimit: number;
+    allowLateSubmissions: boolean;
+    accessWindow: { start: string; end: string };
+  }
+
+export const CreateTest: React.FC = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -83,11 +93,13 @@ export const StudentTestCreation: React.FC = () => {
     });
 
     const [error, setError] = useState<string | null>(null);
-  const [testSchedule, setTestSchedule] = useState({
+  const [testSchedule, setTestSchedule] = useState<TestSchedule>({
       isScheduled: false,
       scheduledDate: '',
       scheduledTime: '',
-      timeLimit: 60
+      timeLimit: 60,
+      allowLateSubmissions: false,
+      accessWindow: { start: '', end: '' }
     });
 
 
